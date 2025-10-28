@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Таблица участников</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      display: flex;
+      gap: 30px;
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .column {
+      flex: 1;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #ccc;
+    }
+
+    th {
+      background-color: #eee;
+    }
+
+    input[type="number"] {
+      width: 60px;
+      padding: 5px;
+      text-align: center;
+      border: 1px solid #999;
+      border-radius: 4px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 5px;
+      border: 1px solid #999;
+      border-radius: 4px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="column">
+    <h2>Участники</h2>
+    <table id="participantsTable">
+      <thead>
+        <tr><th>Имя</th></tr>
+      </thead>
+      <tbody id="participantsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="column">
+    <h2>Статистика</h2>
+    <table id="statsTable">
+      <thead>
+        <tr>
+          <th>Звёзды ⭐</th>
+          <th>Черепки 💀</th>
+        </tr>
+      </thead>
+      <tbody id="statsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // Изначальные данные (можно заменить)
+  let participants = [
+    { name: "Алиса", stars: 5, skulls: 2 },
+    { name: "Боб", stars: 3, skulls: 4 },
+    { name: "Вика", stars: 7, skulls: 1 },
+    { name: "Глеб", stars: 0, skulls: 6 }
+  ];
+
+  // Загрузка данных из localStorage (если есть)
+  const saved = localStorage.getItem('participants');
+  if (saved) {
+    try {
+      participants = JSON.parse(saved);
+    } catch (e) {
+      console.warn('Ошибка загрузки данных из localStorage');
+    }
+  }
+
+  const participantsBody = document.getElementById('participantsBody');
+  const statsBody = document.getElementById('statsBody');
+
+  function render() {
+    participantsBody.innerHTML = '';
+    statsBody.innerHTML = '';
+
+    participants.forEach((p, index) => {
+      // Имя участника (редактируемое)
+      const nameCell = document.createElement('td');
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = p.name;
+      nameInput.oninput = () => {
+        participants[index].name = nameInput.value;
+        saveToStorage();
+      };
+      nameCell.appendChild(nameInput);
+      
+      const nameRow = document.createElement('tr');
+      nameRow.appendChild(nameCell);
+      participantsBody.appendChild(nameRow);
+
+      // Статистика
+      const starsInput = document.createElement('input');
+      starsInput.type = 'number';
+      starsInput.min = '0';
+      starsInput.value = p.stars;
+      starsInput.oninput = () => {
+        participants[index].stars = parseInt(starsInput.value) || 0;
+        saveToStorage();
+      };
+
+      const skullsInput = document.createElement('input');
+      skullsInput.type = 'number';
+      skullsInput.min = '0';
+      skullsInput.value = p.skulls;
+      skullsInput.oninput = () => {
+        participants[index].skulls = parseInt(skullsInput.value) || 0;
+        saveToStorage();
+      };
+
+      const statRow = document.createElement('tr');
+      statRow.appendChild(document.createElement('td')).appendChild(starsInput);
+      statRow.appendChild(document.createElement('td')).appendChild(skullsInput);
+      statsBody.appendChild(statRow);
+    });
+  }
+
+  function saveToStorage() {
+    localStorage.setItem('participants', JSON.stringify(participants));
+  }
+
+  // Инициализация
+  render();
+</script>
+
+</body>
+</html>
