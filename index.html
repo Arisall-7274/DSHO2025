@@ -1,954 +1,1173 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <link rel="icon" type="image/png" href="favicon.png">
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Синхронизированная доска</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f9f9f9;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    .mobile-menu-toggle {
-      display: none;
-      position: fixed;
-      top: 16px;
-      left: 16px;
-      z-index: 1000;
-      background: #2c3e50;
-      color: white;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 4px;
-      font-size: 20px;
-      cursor: pointer;
-    }
-    .sidebar {
-      background: #2c3e50;
-      color: white;
-      padding: 20px 0;
-      width: 220px;
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100vh;
-      z-index: 999;
-      display: flex;
-      flex-direction: column;
-    }
-    .sidebar h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 1.2em;
-    }
-    .sidebar button:not(.admin-toggle-sidebar) {
-      display: block;
-      width: 100%;
-      padding: 12px 16px;
-      margin-bottom: 8px;
-      background: transparent;
-      color: white;
-      border: none;
-      text-align: left;
-      cursor: pointer;
-      font-size: 1em;
-      transition: background 0.2s;
-    }
-    .sidebar button:hover,
-    .sidebar button.active {
-      background: #34495e;
-    }
-    .admin-toggle-sidebar {
-      background: #e74c3c !important;
-      color: white !important;
-      border: none;
-      border-radius: 4px;
-      text-align: center;
-      font-size: 14px;
-      padding: 10px !important;
-      cursor: pointer;
-      margin-top: auto;
-      margin: 0 16px 20px;
-      width: calc(100% - 32px) !important;
-    }
-    .admin-toggle-sidebar:hover {
-      background: #c0392b !important;
-    }
-    .main-content {
-      padding: 16px;
-    }
-    @media (max-width: 767px) {
-      .mobile-menu-toggle {
-        display: block;
-      }
-      .main-content {
-        padding-top: 60px;
-      }
-      .sidebar {
-        transform: translateX(-100%);
-        box-shadow: 4px 0 10px rgba(0,0,0,0.2);
-      }
-      .sidebar.open {
-        transform: translateX(0);
-      }
-    }
-    @media (min-width: 768px) {
-      .sidebar {
-        transform: none !important;
-      }
-      .main-content {
-        padding: 25px;
-        padding-left: 245px;
-      }
-    }
-    .sidebar-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0,0,0,0.4);
-      z-index: 998;
-    }
-    @media (max-width: 767px) {
-      .sidebar-overlay.active {
-        display: block;
-      }
-    }
-    .section { display: none; }
-    .section.active { display: block; }
-    h2.section-title {
-      margin-top: 0;
-      color: #2c3e50;
-      font-size: 1.4em;
-    }
-    .search-box {
-      margin-bottom: 12px;
-      width: 100%;
-      padding: 8px 12px;
-      font-size: 15px;
-      border: 1px solid #999;
-      border-radius: 4px;
-    }
-    .table-wrapper {
-      overflow-x: auto;
-      margin-top: 10px;
-    }
-    .participants-table-responsive {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      font-size: 16px;
-    }
-    .participants-table-responsive th,
-    .participants-table-responsive td {
-      padding: 10px;
-      text-align: center;
-      border: 1px solid #ccc;
-      vertical-align: middle;
-      width: 25%;
-    }
-    .participants-table-responsive th:first-child,
-    .participants-table-responsive td:first-child {
-      text-align: left;
-      padding-left: 10px;
-      padding-right: 10px;
-    }
-    .participants-table-responsive textarea {
-      width: 100%;
-      min-height: 28px;
-      resize: none;
-      overflow: hidden;
-      padding: 6px 8px;
-      border: 1px solid #999;
-      border-radius: 4px;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      text-align: left;
-      box-sizing: border-box;
-    }
-    @media (max-width: 767px) {
-      .participants-table-responsive {
-        font-size: 13px;
-      }
-      .participants-table-responsive th,
-      .participants-table-responsive td {
-        padding: 6px 4px;
-        font-size: 12px;
-      }
-      .participants-table-responsive textarea {
-        font-size: 13px;
-      }
-    }
-    th {
-      background-color: #ecf0f1;
-    }
-    input[type="number"],
-    textarea {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #999;
-      border-radius: 4px;
-      font-size: 16px;
-      font-family: Arial, sans-serif;
-    }
-    #participantsBody input[type="number"] {
-      width: 100%;
-      max-width: 60px;
-      text-align: center;
-      padding: 6px;
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-    @media (max-width: 767px) {
-      #participantsBody input[type="number"] {
-        max-width: 48px;
-        padding: 5px;
-        font-size: 12px;
-      }
-    }
-    .task-list {
-      list-style: none;
-      padding: 0;
-    }
-    .task-item {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 12px;
-      padding: 6px 0;
-      gap: 10px;
-      width: 100%;
-    }
-    .task-checkbox {
-      flex-shrink: 0;
-      margin-top: 4px;
-      transform: scale(1.3);
-      accent-color: #3498db;
-    }
-    .task-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .task-text-display,
-    .task-item textarea {
-      width: 100%;
-      min-height: 24px;
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: #fff;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      resize: none;
-      overflow: hidden;
-    }
-    .task-item textarea {
-      border: 1px solid #999;
-      text-align: left;
-    }
-    .task-text-display {
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .task-assignees {
-      font-size: 13px;
-      color: #555;
-    }
-    .task-actions {
-      display: flex;
-      gap: 6px;
-      margin-top: 6px;
-    }
-    .btn {
-      padding: 8px 12px;
-      margin-top: 8px;
-      background: #3498db;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .btn:hover {
-      background: #2980b9;
-    }
-    .btn:disabled {
-      background: #bdc3c7;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-    .btn-sm {
-      padding: 6px 10px;
-      font-size: 13px;
-    }
-    .task-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 12px 0;
-    }
-    .admin-only {
-      display: none;
-    }
-    .admin-visible.admin-only {
-      display: flex;
-    }
-    .no-tasks {
-      color: #7f8c8d;
-      font-style: italic;
-      padding: 12px 0;
-    }
-    @media (max-width: 767px) {
-      .task-controls {
-        flex-direction: column;
-        gap: 8px;
-        align-items: stretch;
-      }
-    }
-    .action-btn {
-      padding: 4px 6px;
-      font-size: 12px;
-      margin-right: 4px;
-      min-width: 28px;
-    }
-    .export-import {
-      display: flex;
-      gap: 10px;
-      margin: 12px 0;
-    }
-    .task-controls-top-hidden {
-      display: none !important;
-    }
-  .assign-dropdown {
-    position: absolute;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    font-family: Arial, sans-serif;
-    font-size: 13px;
-    width: 220px;
-    max-height: 300px;
-    overflow: hidden;
-    z-index: 2000;
+<link rel="icon" type="image/png" href="favicon.png">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Синхронизированная доска</title>
+<style>
+* { 
+  box-sizing: border-box; 
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: #333;
+  line-height: 1.5;
+}
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  background: #2c3e50;
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+.sidebar {
+  background: #2c3e50;
+  color: white;
+  padding: 20px 0;
+  width: 220px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+.sidebar h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.3em;
+  padding: 0 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar button:not(.admin-toggle-sidebar) {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  margin-bottom: 6px;
+  background: transparent;
+  color: white;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 1.05em;
+  transition: background 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.sidebar button:hover,
+.sidebar button.active {
+  background: #34495e;
+}
+.admin-toggle-sidebar {
+  background: #e74c3c !important;
+  color: white !important;
+  border: none;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 15px;
+  padding: 14px !important;
+  cursor: pointer;
+  margin-top: auto;
+  margin: 0 20px 25px;
+  width: calc(100% - 40px) !important;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+.admin-toggle-sidebar:hover {
+  background: #c0392b !important;
+  transform: translateY(-1px);
+}
+.main-content {
+  padding: 20px 16px;
+}
+@media (max-width: 767px) {
+  .mobile-menu-toggle {
+    display: block;
   }
-  </style>
+  .main-content {
+    padding-top: 70px;
+  }
+  .sidebar {
+    transform: translateX(-100%);
+    box-shadow: 4px 0 15px rgba(0,0,0,0.25);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+@media (min-width: 768px) {
+  .sidebar {
+    transform: none !important;
+  }
+  .main-content {
+    padding: 30px;
+    padding-left: 250px;
+  }
+}
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  z-index: 998;
+}
+@media (max-width: 767px) {
+  .sidebar-overlay.active {
+    display: block;
+  }
+}
+.section { 
+  display: none; 
+}
+.section.active { 
+  display: block; 
+}
+h2.section-title {
+  margin-top: 0;
+  color: #2c3e50;
+  font-size: 1.8em;
+  margin-bottom: 20px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #3498db;
+}
+.search-container {
+  margin-bottom: 20px;
+  max-width: 450px;
+}
+.search-container input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.search-container input:focus {
+  outline: none;
+  border-color: #2980b9;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+.table-wrapper {
+  overflow-x: auto;
+  margin-top: 15px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border: 1px solid #e0e6ed;
+}
+/* Таблица участников - улучшенная видимость */
+.participants-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 650px;
+  font-size: 16px;
+  background: white;
+}
+.participants-table th,
+.participants-table td {
+  padding: 14px 12px;
+  text-align: center;
+  border: 1px solid #e0e6ed;
+  vertical-align: middle;
+  font-weight: normal;
+}
+.participants-table th {
+  background-color: #3498db !important;
+  color: white !important;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 17px;
+}
+.participants-table tbody tr {
+  transition: background-color 0.2s;
+}
+.participants-table tbody tr:hover {
+  background-color: #f8fbff;
+}
+.participants-table tbody tr:nth-child(even) {
+  background-color: #fafcff;
+}
+/* Улучшенная видимость ФИО - ключевые исправления */
+.participants-table td:first-child,
+.participants-table th:first-child {
+  min-width: 220px;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  hyphens: auto !important;
+  text-align: left !important;
+  padding-left: 16px !important;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 16px;
+  line-height: 1.4;
+}
+/* Звёзды и черепки */
+.participants-table input[type="number"] {
+  width: 70px;
+  padding: 8px 6px;
+  text-align: center;
+  border: 2px solid #bdc3c7;
+  border-radius: 6px;
+  font-size: 17px;
+  font-weight: bold;
+  background-color: white;
+  transition: all 0.2s;
+  color: #2c3e50;
+}
+.participants-table input[type="number"]:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+}
+.participants-table input[type="number"]:disabled {
+  background-color: #f8f9fa;
+  color: #7f8c8d;
+  border-color: #dce4ec;
+  cursor: not-allowed;
+}
+/* Кнопки действий */
+.action-btn {
+  padding: 8px 14px;
+  margin: 3px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.2s;
+  min-width: 44px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.star-btn {
+  background: #f39c12;
+  color: white;
+}
+.star-btn:hover {
+  background: #e67e22;
+  transform: scale(1.08);
+}
+.delete-btn {
+  background: #e74c3c;
+  color: white;
+}
+.delete-btn:hover {
+  background: #c0392b;
+  transform: scale(1.08);
+}
+.admin-column {
+  display: none;
+}
+.admin-visible .admin-column {
+  display: table-cell;
+}
+/* Стили для задач */
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 15px;
+}
+.task-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  gap: 10px;
+  position: relative;
+}
+@media (min-width: 768px) {
+  .task-item {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+}
+.task-item input[type="checkbox"] {
+  margin-right: 0;
+  transform: scale(1.4);
+  cursor: pointer;
+  accent-color: #3498db;
+}
+.task-item textarea {
+  width: 100%;
+  min-height: 40px;
+  resize: vertical;
+  padding: 10px 14px;
+  border: 2px solid #bdc3c7;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  transition: border-color 0.2s;
+  overflow-y: auto;
+  background: white;
+  color: #2c3e50;
+}
+.task-item textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+.task-assignees {
+  font-size: 15px;
+  color: #7f8c8d;
+  width: 100%;
+  margin-left: 0 !important;
+  padding: 6px 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  text-align: left;
+  font-style: italic;
+}
+@media (min-width: 768px) {
+  .task-assignees {
+    margin-left: 32px !important;
+    width: auto;
+  }
+}
+.btn {
+  padding: 12px 20px;
+  margin-top: 20px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 600;
+  min-height: 50px;
+  min-width: 140px;
+  transition: all 0.25s;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+.btn:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+}
+.btn:active {
+  transform: translateY(0);
+}
+.btn-add {
+  background: #27ae60;
+}
+.btn-add:hover {
+  background: #229954;
+}
+.btn-delete {
+  background: #e74c3c;
+  margin-left: 12px;
+}
+.btn-delete:hover {
+  background: #c0392b;
+}
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 15px;
+  min-height: auto;
+}
+.export-import {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+.task-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 767px) {
+  .task-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn {
+    width: 100%;
+    margin-top: 12px;
+  }
+  .btn-delete {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+  .export-import {
+    flex-direction: column;
+  }
+  .export-import .btn {
+    width: 100%;
+    margin-top: 0;
+  }
+}
+/* Улучшенная видимость текста на мобильных - КЛЮЧЕВЫЕ ИЗМЕНЕНИЯ */
+@media (max-width: 767px) {
+  body {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  .participants-table {
+    font-size: 15px;
+    min-width: 100% !important;
+  }
+  .participants-table th,
+  .participants-table td {
+    padding: 12px 10px !important;
+    font-size: 15px !important;
+  }
+  .participants-table td:first-child,
+  .participants-table th:first-child {
+    min-width: 180px !important;
+    font-size: 16px !important;
+    padding: 12px 14px !important;
+    line-height: 1.5 !important;
+  }
+  .participants-table input[type="number"] {
+    width: 60px !important;
+    padding: 7px 5px !important;
+    font-size: 16px !important;
+  }
+  .action-btn {
+    padding: 7px 12px !important;
+    font-size: 17px !important;
+    margin: 2px !important;
+  }
+  .search-container input {
+    font-size: 16px !important;
+    padding: 11px 14px !important;
+  }
+  .task-item textarea {
+    font-size: 15px !important;
+    padding: 9px 12px !important;
+  }
+  h2.section-title {
+    font-size: 1.7em !important;
+  }
+}
+/* Очень маленькие экраны */
+@media (max-width: 375px) {
+  .participants-table td:first-child,
+  .participants-table th:first-child {
+    min-width: 160px !important;
+    font-size: 15px !important;
+    padding: 11px 12px !important;
+  }
+  .participants-table th,
+  .participants-table td {
+    padding: 10px 8px !important;
+    font-size: 14px !important;
+  }
+  .action-btn {
+    padding: 6px 10px !important;
+    font-size: 16px !important;
+  }
+  .sidebar button:not(.admin-toggle-sidebar) {
+    padding: 12px 16px !important;
+    font-size: 1em !important;
+  }
+}
+/* Печать */
+@media print {
+  .sidebar, .mobile-menu-toggle, .sidebar-overlay, .btn, input[type="number"], .admin-column, .action-btn {
+    display: none !important;
+  }
+  .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .participants-table {
+    font-size: 12pt;
+    border: 1px solid #000 !important;
+  }
+  .participants-table th {
+    background-color: #000 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .participants-table td {
+    border: 1px solid #000 !important;
+  }
+}
+/* Улучшение читаемости на всех устройствах */
+textarea, input[type="number"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+/* Анимация появления строк */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.participants-table tbody tr {
+  animation: fadeIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+.participants-table tbody tr:nth-child(odd) {
+  animation-delay: 0.05s;
+}
+.participants-table tbody tr:nth-child(even) {
+  animation-delay: 0.1s;
+}
+</style>
 </head>
 <body>
-  <button class="mobile-menu-toggle" id="menuToggle">☰</button>
-  <div class="sidebar" id="sidebar">
-    <h2>Навигация</h2>
-    <button data-target="participants" class="active">Участники</button>
-    <button data-target="sector-a">Медиа</button>
-    <button data-target="sector-b">Волонтёрский</button>
-    <button data-target="sector-c">Спортивный</button>
-    <button data-target="sector-d">Учебно-трудовой</button>
-    <button data-target="sector-e">Досуговый</button>
-    <button data-target="sector-f">Вожатский</button>
-    <button class="btn admin-toggle-sidebar" id="adminToggleBtnSidebar">
-      🔐 Войти в режим администратора
-    </button>
+<button class="mobile-menu-toggle" id="menuToggle">☰</button>
+<div class="sidebar" id="sidebar">
+  <h2>Синхронизированная доска</h2>
+  <button data-target="participants" class="active">Участники</button>
+  <button data-target="sector-a">Медиа</button>
+  <button data-target="sector-b">Волонтёрский</button>
+  <button data-target="sector-c">Спортивный</button>
+  <button data-target="sector-d">Учебно-трудовой</button>
+  <button data-target="sector-e">Досуговый</button>
+  <button data-target="sector-f">Вожатский</button>
+  <button class="admin-toggle-sidebar" id="adminToggleBtnSidebar">
+    🔐 Войти в режим администратора
+  </button>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="main-content">
+  <div id="participants" class="section active">
+    <h2 class="section-title">Участники</h2>
+    
+    <div class="export-import admin-only">
+      <button class="btn btn-sm admin-only" id="exportBtn">📤 Экспорт в Excel</button>
+      <button class="btn btn-sm admin-only" id="importBtn">📥 Импорт из Excel</button>
+      <input type="file" id="importFile" accept=".csv" style="display: none;" />
+    </div>
+    
+    <div class="search-container">
+      <input type="text" id="participantSearch" placeholder="🔍 Поиск участника..." onkeyup="filterParticipants()">
+    </div>
+    
+    <div class="table-wrapper">
+      <table class="participants-table">
+        <thead>
+          <tr>
+            <th>ФИО участника</th>
+            <th>Звёзды ⭐</th>
+            <th>Черепки 💀</th>
+            <th id="actionsHeader">Действия</th>
+          </tr>
+        </thead>
+        <tbody id="participantsBody"></tbody>
+      </table>
+    </div>
+    
+    <button class="btn btn-add admin-only" id="addParticipantBtn" onclick="addNewParticipant()">➕ Добавить участника</button>
   </div>
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  <div class="main-content">
-    <div id="participants" class="section active">
-      <h2 class="section-title">Участники</h2>
-      <div class="export-import admin-only">
-        <button class="btn btn-sm admin-only" id="exportBtn">📤 Экспорт в Excel</button>
-        <button class="btn btn-sm admin-only" id="importBtn">📥 Импорт из Excel</button>
-        <input type="file" id="importFile" accept=".csv" style="display: none;" />
-      </div>
-      <input type="text" class="search-box" id="participantSearch" placeholder="Поиск участника по имени...">
-      <div class="table-wrapper">
-        <table class="participants-table-responsive">
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Звёзды ⭐</th>
-              <th>Черепки 💀</th>
-              <th id="actionsHeader">Действия</th>
-            </tr>
-          </thead>
-          <tbody id="participantsBody"></tbody>
-        </table>
-      </div>
-      <button class="btn admin-only" id="addParticipantBtn" onclick="addNewParticipant()">+ Добавить участника</button>
-    </div>
 
-    <!-- Секторы -->
-    <div id="sector-a" class="section">
-      <h2 class="section-title">План дел — Медиа</h2>
-      <div class="task-controls task-controls-top" id="controls-top-a">
-        <button class="btn btn-sm admin-only" id="toggleSelect-a">Выделить всё</button>
-        <button class="btn btn-sm admin-only" id="deleteDoneTop-a">🗑️ Удалить выполненные</button>
-      </div>
-      <ul id="tasks-a" class="task-list">
-        <li class="no-tasks">Заданий нет</li>
-      </ul>
-      <div class="task-controls">
-        <button class="btn btn-sm admin-only" onclick="addTask('a')">+ Добавить задачу</button>
-        <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-          <button class="btn btn-sm admin-only" id="toggleSelect-a-bottom">Выделить всё</button>
-          <button class="btn btn-sm admin-only" id="deleteDoneBottom-a">🗑️ Удалить выполненные</button>
-        </div>
-      </div>
+  <!-- Секторы -->
+  <div id="sector-a" class="section">
+    <h2 class="section-title">План дел — Медиа</h2>
+    <div class="task-controls task-controls-top" id="controls-top-a">
+      <button class="btn btn-sm admin-only" id="toggleSelect-a">Выделить всё</button>
+      <button class="btn btn-sm admin-only" id="deleteDoneTop-a">🗑️ Удалить выполненные</button>
     </div>
-    <div id="sector-b" class="section">
-      <h2 class="section-title">План дел — Волонтёрский</h2>
-      <div class="task-controls task-controls-top" id="controls-top-b">
-        <button class="btn btn-sm admin-only" id="toggleSelect-b">Выделить всё</button>
-        <button class="btn btn-sm admin-only" id="deleteDoneTop-b">🗑️ Удалить выполненные</button>
-      </div>
-      <ul id="tasks-b" class="task-list">
-        <li class="no-tasks">Заданий нет</li>
-      </ul>
-      <div class="task-controls">
-        <button class="btn btn-sm admin-only" onclick="addTask('b')">+ Добавить задачу</button>
-        <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-          <button class="btn btn-sm admin-only" id="toggleSelect-b-bottom">Выделить всё</button>
-          <button class="btn btn-sm admin-only" id="deleteDoneBottom-b">🗑️ Удалить выполненные</button>
-        </div>
-      </div>
-    </div>
-    <div id="sector-c" class="section">
-      <h2 class="section-title">План дел — Спортивный</h2>
-      <div class="task-controls task-controls-top" id="controls-top-c">
-        <button class="btn btn-sm admin-only" id="toggleSelect-c">Выделить всё</button>
-        <button class="btn btn-sm admin-only" id="deleteDoneTop-c">🗑️ Удалить выполненные</button>
-      </div>
-      <ul id="tasks-c" class="task-list">
-        <li class="no-tasks">Заданий нет</li>
-      </ul>
-      <div class="task-controls">
-        <button class="btn btn-sm admin-only" onclick="addTask('c')">+ Добавить задачу</button>
-        <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-          <button class="btn btn-sm admin-only" id="toggleSelect-c-bottom">Выделить всё</button>
-          <button class="btn btn-sm admin-only" id="deleteDoneBottom-c">🗑️ Удалить выполненные</button>
-        </div>
-      </div>
-    </div>
-    <div id="sector-d" class="section">
-      <h2 class="section-title">План дел — Учебно-трудовой</h2>
-      <div class="task-controls task-controls-top" id="controls-top-d">
-        <button class="btn btn-sm admin-only" id="toggleSelect-d">Выделить всё</button>
-        <button class="btn btn-sm admin-only" id="deleteDoneTop-d">🗑️ Удалить выполненные</button>
-      </div>
-      <ul id="tasks-d" class="task-list">
-        <li class="no-tasks">Заданий нет</li>
-      </ul>
-      <div class="task-controls">
-        <button class="btn btn-sm admin-only" onclick="addTask('d')">+ Добавить задачу</button>
-        <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-          <button class="btn btn-sm admin-only" id="toggleSelect-d-bottom">Выделить всё</button>
-          <button class="btn btn-sm admin-only" id="deleteDoneBottom-d">🗑️ Удалить выполненные</button>
-        </div>
-      </div>
-    </div>
-    <div id="sector-e" class="section">
-      <h2 class="section-title">План дел — Досуговый</h2>
-      <div class="task-controls task-controls-top" id="controls-top-e">
-        <button class="btn btn-sm admin-only" id="toggleSelect-e">Выделить всё</button>
-        <button class="btn btn-sm admin-only" id="deleteDoneTop-e">🗑️ Удалить выполненные</button>
-      </div>
-      <ul id="tasks-e" class="task-list">
-        <li class="no-tasks">Заданий нет</li>
-      </ul>
-      <div class="task-controls">
-        <button class="btn btn-sm admin-only" onclick="addTask('e')">+ Добавить задачу</button>
-        <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-          <button class="btn btn-sm admin-only" id="toggleSelect-e-bottom">Выделить всё</button>
-          <button class="btn btn-sm admin-only" id="deleteDoneBottom-e">🗑️ Удалить выполненные</button>
-        </div>
-      </div>
-    </div>
-    <div id="sector-f" class="section">
-      <h2 class="section-title">План дел — Вожатский</h2>
-      <div class="task-controls task-controls-top" id="controls-top-f">
-        <button class="btn btn-sm admin-only" id="toggleSelect-f">Выделить всё</button>
-        <button class="btn btn-sm admin-only" id="deleteDoneTop-f">🗑️ Удалить выполненные</button>
-      </div>
-      <ul id="tasks-f" class="task-list">
-        <li class="no-tasks">Заданий нет</li>
-      </ul>
-      <div class="task-controls">
-        <button class="btn btn-sm admin-only" onclick="addTask('f')">+ Добавить задачу</button>
-        <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-          <button class="btn btn-sm admin-only" id="toggleSelect-f-bottom">Выделить всё</button>
-          <button class="btn btn-sm admin-only" id="deleteDoneBottom-f">🗑️ Удалить выполненные</button>
-        </div>
+    <ul id="tasks-a" class="task-list">
+      <li class="no-tasks">Заданий нет</li>
+    </ul>
+    <div class="task-controls">
+      <button class="btn btn-sm admin-only" onclick="addTask('a')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-a-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-a">🗑️ Удалить выполненные</button>
       </div>
     </div>
   </div>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDaxVRaPKFca3aiplOA-UwbUOwrrLlCr_A",
-      authDomain: "website-dsho-legend.firebaseapp.com",
-      databaseURL: "https://website-dsho-legend-default-rtdb.firebaseio.com",
-      projectId: "website-dsho-legend",
-      storageBucket: "website-dsho-legend.firebasestorage.app",
-      messagingSenderId: "963395738991",
-      appId: "1:963395738991:web:4f5ecd4277205a71389c9a",
-      measurementId: "G-N8BVW01MVS"
-    };
-    firebase.initializeApp(firebaseConfig);
-    firebase.analytics();
-    const db = firebase.database();
-    const ADMIN_PASSWORD = "На горшке сидел король";
-    let isAdmin = false;
-    const ACTIVE_TAB_KEY = 'activeTab';
-    let currentTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'participants';
-    let participantsList = [];
-    let participantsLoaded = false;
-    const sectorListeners = {};
+  
+  <div id="sector-b" class="section">
+    <h2 class="section-title">План дел — Волонтёрский</h2>
+    <div class="task-controls task-controls-top" id="controls-top-b">
+      <button class="btn btn-sm admin-only" id="toggleSelect-b">Выделить всё</button>
+      <button class="btn btn-sm admin-only" id="deleteDoneTop-b">🗑️ Удалить выполненные</button>
+    </div>
+    <ul id="tasks-b" class="task-list">
+      <li class="no-tasks">Заданий нет</li>
+    </ul>
+    <div class="task-controls">
+      <button class="btn btn-sm admin-only" onclick="addTask('b')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-b-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-b">🗑️ Удалить выполненные</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="sector-c" class="section">
+    <h2 class="section-title">План дел — Спортивный</h2>
+    <div class="task-controls task-controls-top" id="controls-top-c">
+      <button class="btn btn-sm admin-only" id="toggleSelect-c">Выделить всё</button>
+      <button class="btn btn-sm admin-only" id="deleteDoneTop-c">🗑️ Удалить выполненные</button>
+    </div>
+    <ul id="tasks-c" class="task-list">
+      <li class="no-tasks">Заданий нет</li>
+    </ul>
+    <div class="task-controls">
+      <button class="btn btn-sm admin-only" onclick="addTask('c')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-c-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-c">🗑️ Удалить выполненные</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="sector-d" class="section">
+    <h2 class="section-title">План дел — Учебно-трудовой</h2>
+    <div class="task-controls task-controls-top" id="controls-top-d">
+      <button class="btn btn-sm admin-only" id="toggleSelect-d">Выделить всё</button>
+      <button class="btn btn-sm admin-only" id="deleteDoneTop-d">🗑️ Удалить выполненные</button>
+    </div>
+    <ul id="tasks-d" class="task-list">
+      <li class="no-tasks">Заданий нет</li>
+    </ul>
+    <div class="task-controls">
+      <button class="btn btn-sm admin-only" onclick="addTask('d')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-d-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-d">🗑️ Удалить выполненные</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="sector-e" class="section">
+    <h2 class="section-title">План дел — Досуговый</h2>
+    <div class="task-controls task-controls-top" id="controls-top-e">
+      <button class="btn btn-sm admin-only" id="toggleSelect-e">Выделить всё</button>
+      <button class="btn btn-sm admin-only" id="deleteDoneTop-e">🗑️ Удалить выполненные</button>
+    </div>
+    <ul id="tasks-e" class="task-list">
+      <li class="no-tasks">Заданий нет</li>
+    </ul>
+    <div class="task-controls">
+      <button class="btn btn-sm admin-only" onclick="addTask('e')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-e-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-e">🗑️ Удалить выполненные</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="sector-f" class="section">
+    <h2 class="section-title">План дел — Вожатский</h2>
+    <div class="task-controls task-controls-top" id="controls-top-f">
+      <button class="btn btn-sm admin-only" id="toggleSelect-f">Выделить всё</button>
+      <button class="btn btn-sm admin-only" id="deleteDoneTop-f">🗑️ Удалить выполненные</button>
+    </div>
+    <ul id="tasks-f" class="task-list">
+      <li class="no-tasks">Заданий нет</li>
+    </ul>
+    <div class="task-controls">
+      <button class="btn btn-sm admin-only" onclick="addTask('f')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-f-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-f">🗑️ Удалить выполненные</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-    function updateAdminUI() {
-      document.querySelectorAll('.admin-only').forEach(el => {
-        el.classList.toggle('admin-visible', isAdmin);
-      });
-      const actionsHeader = document.getElementById('actionsHeader');
-      if (actionsHeader) actionsHeader.style.display = isAdmin ? '' : 'none';
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDaxVRaPKFca3aiplOA-UwbUOwrrLlCr_A",
+  authDomain: "website-dsho-legend.firebaseapp.com",
+  databaseURL: "https://website-dsho-legend-default-rtdb.firebaseio.com",
+  projectId: "website-dsho-legend",
+  storageBucket: "website-dsho-legend.firebasestorage.app",
+  messagingSenderId: "963395738991",
+  appId: "1:963395738991:web:4f5ecd4277205a71389c9a",
+  measurementId: "G-N8BVW01MVS"
+};
+firebase.initializeApp(firebaseConfig);
+firebase.analytics();
+const db = firebase.database();
+const ADMIN_PASSWORD = "На горшке сидел король";
+let isAdmin = false;
+const ACTIVE_TAB_KEY = 'activeTab';
+let currentTab = localStorage.getItem(ACTIVE_TAB_KEY) || 'participants';
+let participantsList = [];
+let participantsLoaded = false;
+const sectorListeners = {};
+
+function updateAdminUI() {
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.classList.toggle('admin-visible', isAdmin);
+  });
+  const actionsHeader = document.getElementById('actionsHeader');
+  if (actionsHeader) actionsHeader.style.display = isAdmin ? '' : 'none';
+}
+
+function exportToCSV() {
+  if (!isAdmin) return;
+  let csv = 'Имя,Звёзды,Черепки\n';
+  participantsList.forEach(p => {
+    csv += `"${p.name.replace(/"/g, '""')}",${p.stars},${p.skulls}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'участники_лидерборд.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importFromCSV(file) {
+  if (!isAdmin) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      alert('Файл пуст или неверный формат.');
+      return;
     }
-
-    function exportToCSV() {
-      if (!isAdmin) return;
-      let csv = 'Имя,Звёзды,Черепки\n';
-      participantsList.forEach(p => {
-        csv += `"${p.name.replace(/"/g, '""')}",${p.stars},${p.skulls}\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'участники_лидерборд.csv';
-      a.click();
-      URL.revokeObjectURL(url);
+    const header = lines[0].split(',').map(h => h.trim());
+    if (header[0] !== 'Имя' || header[1] !== 'Звёзды' || header[2] !== 'Черепки') {
+      alert('Неверный формат файла. Ожидаются столбцы: Имя, Звёзды, Черепки');
+      return;
     }
-
-    function importFromCSV(file) {
-      if (!isAdmin) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target.result;
-        const lines = text.split('\n').filter(line => line.trim());
-        if (lines.length < 2) {
-          alert('Файл пуст или неверный формат.');
-          return;
-        }
-        const header = lines[0].split(',').map(h => h.trim());
-        if (header[0] !== 'Имя' || header[1] !== 'Звёзды' || header[2] !== 'Черепки') {
-          alert('Неверный формат файла. Ожидаются столбцы: Имя, Звёзды, Черепки');
-          return;
-        }
-        if (!confirm('⚠️ Внимание! Импорт перезапишет всех участников. Продолжить?')) return;
-        const batch = db.ref().child('participants');
-        batch.remove();
-        setTimeout(() => {
-          lines.slice(1).forEach(line => {
-            const [name, stars, skulls] = line.split(',').map(s => s.trim().replace(/^"(.*)"$/, '$1'));
-            if (name) {
-              batch.push({
-                name: name,
-                stars: parseInt(stars) || 0,
-                skulls: parseInt(skulls) || 0
-              });
-            }
+    if (!confirm('⚠️ Внимание! Импорт перезапишет всех участников. Продолжить?')) return;
+    const batch = db.ref().child('participants');
+    batch.remove();
+    setTimeout(() => {
+      lines.slice(1).forEach(line => {
+        const [name, stars, skulls] = line.split(',').map(s => s.trim().replace(/^"(.*)"$/, '$1'));
+        if (name) {
+          batch.push({
+            name: name,
+            stars: parseInt(stars) || 0,
+            skulls: parseInt(skulls) || 0
           });
-          alert('✅ Импорт завершён!');
-        }, 500);
-      };
-      reader.readAsText(file, 'utf-8');
-    }
-
-    function enterAdminMode() {
-      const pass = prompt("🔒 Введите пароль администратора:");
-      if (pass === ADMIN_PASSWORD) {
-        isAdmin = true;
-        document.querySelectorAll('.admin-toggle-sidebar').forEach(el => {
-          el.textContent = "🔓 Режим администратора (активен)";
-        });
-        updateAdminUI();
-        alert("✅ Вы вошли в режим администратора.");
-        initParticipantsTable();
-        reinitAllTasks();
-      } else if (pass !== null) {
-        alert("❌ Неверный пароль!");
-      }
-    }
-
-    function exitAdminMode() {
-      isAdmin = false;
-      document.querySelectorAll('.admin-toggle-sidebar').forEach(el => {
-        el.textContent = "🔐 Войти в режим администратора";
+        }
       });
-      updateAdminUI();
-      alert("✅ Режим администратора отключён.");
-      initParticipantsTable();
-      reinitAllTasks();
-    }
+      alert('✅ Импорт завершён!');
+    }, 500);
+  };
+  reader.readAsText(file, 'utf-8');
+}
 
-    function updateTaskControlsVisibility(sector) {
-      const list = document.getElementById(`tasks-${sector}`);
-      const topControls = document.getElementById(`controls-top-${sector}`);
-      if (!list || !topControls) return;
-      const noTasks = list.querySelector('.no-tasks');
-      const hasTasks = list.children.length > (noTasks ? 1 : 0);
-      if (hasTasks) {
-        const listHeight = list.getBoundingClientRect().height;
-        const viewportHeight = window.innerHeight;
-        const shouldShow = listHeight > viewportHeight * 0.8;
-        topControls.classList.toggle('task-controls-top-hidden', !shouldShow);
-      } else {
-        topControls.classList.add('task-controls-top-hidden');
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const menuToggle = document.getElementById('menuToggle');
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebarOverlay');
-      const adminBtn = document.getElementById('adminToggleBtnSidebar');
-      const exportBtn = document.getElementById('exportBtn');
-      const importBtn = document.getElementById('importBtn');
-      const importFile = document.getElementById('importFile');
-
-      if (adminBtn) {
-        adminBtn.onclick = () => isAdmin ? exitAdminMode() : enterAdminMode();
-      }
-      if (exportBtn) {
-        exportBtn.onclick = exportToCSV;
-      }
-      if (importBtn) {
-        importBtn.onclick = () => importFile.click();
-      }
-      if (importFile) {
-        importFile.onchange = (e) => {
-          const file = e.target.files[0];
-          if (file) {
-            importFromCSV(file);
-            importFile.value = '';
-          }
-        };
-      }
-
-      if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
-          sidebar.classList.add('open');
-          overlay.classList.add('active');
-        });
-      }
-
-      const closeSidebar = () => {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-      };
-      overlay.addEventListener('click', closeSidebar);
-
-      document.querySelectorAll('.sidebar button:not(.admin-toggle-sidebar)').forEach(btn => {
-        btn.addEventListener('click', () => {
-          if (window.innerWidth <= 767) {
-            closeSidebar();
-          }
-        });
-      });
-
-      const searchInput = document.getElementById('participantSearch');
-      if (searchInput) {
-        searchInput.addEventListener('input', () => {
-          const query = searchInput.value.trim().toLowerCase();
-          const rows = document.querySelectorAll('#participantsBody tr');
-          rows.forEach(row => {
-            const name = row.querySelector('textarea')?.value || '';
-            row.style.display = name.toLowerCase().includes(query) ? '' : 'none';
-          });
-        });
-      }
-
-      updateAdminUI();
+function enterAdminMode() {
+  const pass = prompt("🔒 Введите пароль администратора:");
+  if (pass === ADMIN_PASSWORD) {
+    isAdmin = true;
+    document.querySelectorAll('.admin-toggle-sidebar').forEach(el => {
+      el.innerHTML = "🔓 Режим администратора (активен)";
     });
+    updateAdminUI();
+    alert("✅ Вы вошли в режим администратора.");
+    initParticipantsTable();
+    reinitAllTasks();
+  } else if (pass !== null) {
+    alert("❌ Неверный пароль!");
+  }
+}
 
-    function unsubscribeFromTasks(sector) {
-      if (sectorListeners[sector]) {
-        const { ref, handlers } = sectorListeners[sector];
-        ref.off('child_added', handlers.added);
-        ref.off('child_changed', handlers.changed);
-        ref.off('child_removed', handlers.removed);
-        delete sectorListeners[sector];
+function exitAdminMode() {
+  isAdmin = false;
+  document.querySelectorAll('.admin-toggle-sidebar').forEach(el => {
+    el.innerHTML = "🔐 Войти в режим администратора";
+  });
+  updateAdminUI();
+  alert("✅ Режим администратора отключён.");
+  initParticipantsTable();
+  reinitAllTasks();
+}
+
+function updateTaskControlsVisibility(sector) {
+  const list = document.getElementById(`tasks-${sector}`);
+  const topControls = document.getElementById(`controls-top-${sector}`);
+  if (!list || !topControls) return;
+  const noTasks = list.querySelector('.no-tasks');
+  const hasTasks = list.children.length > (noTasks ? 1 : 0);
+  if (hasTasks) {
+    const listHeight = list.getBoundingClientRect().height;
+    const viewportHeight = window.innerHeight;
+    const shouldShow = listHeight > viewportHeight * 0.8;
+    topControls.classList.toggle('task-controls-top-hidden', !shouldShow);
+  } else {
+    topControls.classList.add('task-controls-top-hidden');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const menuToggle = document.getElementById('menuToggle');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const adminBtn = document.getElementById('adminToggleBtnSidebar');
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFile = document.getElementById('importFile');
+  
+  if (adminBtn) {
+    adminBtn.onclick = () => isAdmin ? exitAdminMode() : enterAdminMode();
+  }
+  if (exportBtn) {
+    exportBtn.onclick = exportToCSV;
+  }
+  if (importBtn) {
+    importBtn.onclick = () => importFile.click();
+  }
+  if (importFile) {
+    importFile.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        importFromCSV(file);
+        importFile.value = '';
       }
-    }
-
-    function reinitAllTasks() {
-      if (currentTab.startsWith('sector-')) {
-        const sector = currentTab.split('-')[1];
-        unsubscribeFromTasks(sector);
-        document.getElementById(`tasks-${sector}`).innerHTML = '<li class="no-tasks">Заданий нет</li>';
-        initTasks(sector);
+    };
+  }
+  if (menuToggle) {
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.add('open');
+      overlay.classList.add('active');
+    });
+  }
+  const closeSidebar = () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+  };
+  overlay.addEventListener('click', closeSidebar);
+  document.querySelectorAll('.sidebar button:not(.admin-toggle-sidebar)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 767) {
+        closeSidebar();
       }
-    }
+    });
+  });
+  const searchInput = document.getElementById('participantSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim().toLowerCase();
+      const rows = document.querySelectorAll('#participantsBody tr');
+      rows.forEach(row => {
+        const name = row.querySelector('textarea')?.value || '';
+        row.style.display = name.toLowerCase().includes(query) ? '' : 'none';
+      });
+    });
+  }
+  updateAdminUI();
+});
 
-    function loadParticipants() {
-      return new Promise((resolve) => {
-        db.ref('participants').once('value', (snapshot) => {
-          participantsList = [];
-          const data = snapshot.val() || {};
-          Object.entries(data).forEach(([key, p]) => {
-            participantsList.push({ key, name: p.name || '', stars: p.stars || 0, skulls: p.skulls || 0 });
-          });
-          participantsLoaded = true;
-          renderParticipantsTable();
-          resolve();
+function unsubscribeFromTasks(sector) {
+  if (sectorListeners[sector]) {
+    const { ref, handlers } = sectorListeners[sector];
+    ref.off('child_added', handlers.added);
+    ref.off('child_changed', handlers.changed);
+    ref.off('child_removed', handlers.removed);
+    delete sectorListeners[sector];
+  }
+}
+
+function reinitAllTasks() {
+  if (currentTab.startsWith('sector-')) {
+    const sector = currentTab.split('-')[1];
+    unsubscribeFromTasks(sector);
+    document.getElementById(`tasks-${sector}`).innerHTML = '<li class="no-tasks">Заданий нет</li>';
+    initTasks(sector);
+  }
+}
+
+function loadParticipants() {
+  return new Promise((resolve) => {
+    db.ref('participants').once('value', (snapshot) => {
+      participantsList = [];
+      const data = snapshot.val() || {};
+      Object.entries(data).forEach(([key, p]) => {
+        participantsList.push({ key, name: p.name || '', stars: p.stars || 0, skulls: p.skulls || 0 });
+      });
+      participantsLoaded = true;
+      renderParticipantsTable();
+      resolve();
+    });
+  });
+}
+
+function renderParticipantsTable() {
+  const tbody = document.getElementById('participantsBody');
+  tbody.innerHTML = '';
+  const sorted = [...participantsList].sort((a, b) => (b.stars - b.skulls * 10) - (a.stars - a.skulls * 10));
+  sorted.forEach(p => {
+    const row = document.createElement('tr');
+    row.dataset.key = p.key;
+    
+    // ФИО с улучшенной видимостью
+    const nameCell = document.createElement('td');
+    const nameTextarea = document.createElement('textarea');
+    nameTextarea.value = p.name;
+    nameTextarea.rows = 1;
+    nameTextarea.style.resize = 'none';
+    nameTextarea.style.overflow = 'hidden';
+    nameTextarea.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    nameTextarea.style.fontSize = '16px';
+    nameTextarea.style.padding = '8px 12px';
+    nameTextarea.style.border = '2px solid #bdc3c7';
+    nameTextarea.style.borderRadius = '6px';
+    nameTextarea.style.textAlign = 'left';
+    nameTextarea.style.minHeight = '36px';
+    nameTextarea.style.width = '100%';
+    nameTextarea.style.backgroundColor = 'white';
+    nameTextarea.style.color = '#2c3e50';
+    nameTextarea.style.fontWeight = '500';
+    nameTextarea.disabled = !isAdmin;
+    
+    const autoSizeName = () => {
+      nameTextarea.style.height = 'auto';
+      nameTextarea.style.height = Math.max(36, nameTextarea.scrollHeight) + 'px';
+    };
+    autoSizeName();
+    
+    if (isAdmin) {
+      nameTextarea.addEventListener('input', autoSizeName);
+      nameTextarea.addEventListener('blur', () => {
+        db.ref(`participants/${p.key}/name`).set(nameTextarea.value.trim() || 'Без имени');
+      });
+    }
+    nameCell.appendChild(nameTextarea);
+    
+    // Звёзды
+    const starsCell = document.createElement('td');
+    const starsInput = document.createElement('input');
+    starsInput.type = 'number';
+    starsInput.min = '0';
+    starsInput.value = p.stars;
+    starsInput.disabled = !isAdmin;
+    starsInput.style.width = '100%';
+    if (isAdmin) {
+      starsInput.addEventListener('blur', () => {
+        const val = Math.max(0, parseInt(starsInput.value) || 0);
+        db.ref(`participants/${p.key}/stars`).set(val);
+        starsInput.value = val;
+      });
+      starsInput.addEventListener('focus', (e) => {
+        e.target.dataset.scrollY = window.scrollY;
+      });
+      starsInput.addEventListener('blur', (e) => {
+        setTimeout(() => {
+          window.scrollTo(0, e.target.dataset.scrollY);
+        }, 10);
+      });
+      starsInput.addEventListener('dblclick', () => {
+        const newVal = p.stars + 1;
+        db.ref(`participants/${p.key}/stars`).set(newVal);
+      });
+    }
+    starsCell.appendChild(starsInput);
+    
+    // Черепки
+    const skullsCell = document.createElement('td');
+    const skullsInput = document.createElement('input');
+    skullsInput.type = 'number';
+    skullsInput.min = '0';
+    skullsInput.value = p.skulls;
+    skullsInput.disabled = !isAdmin;
+    skullsInput.style.width = '100%';
+    if (isAdmin) {
+      skullsInput.addEventListener('blur', () => {
+        const val = Math.max(0, parseInt(skullsInput.value) || 0);
+        db.ref(`participants/${p.key}/skulls`).set(val);
+        skullsInput.value = val;
+      });
+      skullsInput.addEventListener('focus', (e) => {
+        e.target.dataset.scrollY = window.scrollY;
+      });
+      skullsInput.addEventListener('blur', (e) => {
+        setTimeout(() => {
+          window.scrollTo(0, e.target.dataset.scrollY);
+        }, 10);
+      });
+    }
+    skullsCell.appendChild(skullsInput);
+    
+    // Действия
+    const actionsCell = document.createElement('td');
+    if (isAdmin) {
+      const chocolateBtn = document.createElement('button');
+      chocolateBtn.textContent = '🍫';
+      chocolateBtn.title = 'Потратить 10 звёзд';
+      chocolateBtn.className = 'action-btn star-btn';
+      chocolateBtn.disabled = p.stars < 10;
+      chocolateBtn.onclick = () => p.stars >= 10 ? db.ref(`participants/${p.key}/stars`).set(p.stars - 10) : alert('Нужно 10+ звёзд!');
+      actionsCell.appendChild(chocolateBtn);
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.title = 'Удалить';
+      deleteBtn.className = 'action-btn delete-btn';
+      deleteBtn.onclick = () => confirm(`Удалить "${p.name}"?`) && db.ref(`participants/${p.key}`).remove();
+      actionsCell.appendChild(deleteBtn);
+    }
+    actionsCell.style.display = isAdmin ? 'flex' : 'none';
+    actionsCell.style.justifyContent = 'center';
+    actionsCell.style.gap = '6px';
+    actionsCell.style.padding = '6px';
+    
+    row.append(nameCell, starsCell, skullsCell, actionsCell);
+    tbody.appendChild(row);
+  });
+  
+  const searchInput = document.getElementById('participantSearch');
+  if (searchInput) {
+    const event = new Event('input');
+    searchInput.dispatchEvent(event);
+  }
+}
+
+function initParticipantsTable() {
+  db.ref('participants').on('value', (snapshot) => {
+    participantsList = [];
+    const data = snapshot.val() || {};
+    Object.entries(data).forEach(([key, p]) => {
+      participantsList.push({ key, name: p.name || '', stars: p.stars || 0, skulls: p.skulls || 0 });
+    });
+    renderParticipantsTable();
+  });
+}
+
+async function initTasks(sector) {
+  if (!participantsLoaded) await loadParticipants();
+  const list = document.getElementById(`tasks-${sector}`);
+  const topControls = document.getElementById(`controls-top-${sector}`);
+  const bottomControls = Array.from(document.querySelectorAll(`#sector-${sector} .task-controls`)).pop();
+  
+  list.innerHTML = '<li class="no-tasks">Заданий нет</li>';
+  if (topControls) topControls.classList.add('task-controls-top-hidden');
+  
+  // Привязываем обработчики к кнопкам сверху
+  const toggleTop = document.getElementById(`toggleSelect-${sector}`);
+  const deleteTop = document.getElementById(`deleteDoneTop-${sector}`);
+  if (toggleTop) {
+    toggleTop.onclick = () => toggleSelectAll(sector);
+  }
+  if (deleteTop) {
+    deleteTop.onclick = () => {
+      if (!isAdmin || !confirm('Удалить все выполненные задачи?')) return;
+      db.ref(`tasks/${sector}`).once('value', (snapshot) => {
+        const tasks = snapshot.val() || {};
+        Object.entries(tasks).forEach(([key, task]) => {
+          if (task.done) db.ref(`tasks/${sector}/${key}`).remove();
         });
       });
-    }
-
-    function renderParticipantsTable() {
-      const tbody = document.getElementById('participantsBody');
-      tbody.innerHTML = '';
-      const sorted = [...participantsList].sort((a, b) => (b.stars - b.skulls * 10) - (a.stars - a.skulls * 10));
-      sorted.forEach(p => {
-        const row = document.createElement('tr');
-        row.dataset.key = p.key;
-
-        const nameCell = document.createElement('td');
-        const nameTextarea = document.createElement('textarea');
-        nameTextarea.value = p.name;
-        nameTextarea.rows = 1;
-        nameTextarea.style.resize = 'none';
-        nameTextarea.style.overflow = 'hidden';
-        nameTextarea.style.fontFamily = 'Arial, sans-serif';
-        nameTextarea.style.fontSize = '14px';
-        nameTextarea.style.padding = '6px 8px';
-        nameTextarea.style.border = '1px solid #999';
-        nameTextarea.style.borderRadius = '4px';
-        nameTextarea.style.textAlign = 'left';
-        nameTextarea.style.minHeight = '28px';
-        nameTextarea.style.width = '100%';
-        nameTextarea.disabled = !isAdmin;
-
-        const autoSizeName = () => {
-          nameTextarea.style.height = 'auto';
-          nameTextarea.style.height = Math.max(28, nameTextarea.scrollHeight) + 'px';
-        };
-        autoSizeName();
-
-        if (isAdmin) {
-          nameTextarea.addEventListener('input', autoSizeName);
-          nameTextarea.addEventListener('blur', () => {
-            db.ref(`participants/${p.key}/name`).set(nameTextarea.value.trim() || 'Без имени');
+    };
+  }
+  
+  // Обновляем нижние кнопки
+  if (bottomControls) {
+    bottomControls.innerHTML = `
+      <button class="btn btn-sm admin-only" onclick="addTask('${sector}')">➕ Добавить задачу</button>
+      <div class="admin-only admin-visible" style="display:flex;gap:10px;">
+        <button class="btn btn-sm admin-only" id="toggleSelect-${sector}-bottom">Выделить всё</button>
+        <button class="btn btn-sm admin-only" id="deleteDoneBottom-${sector}">🗑️ Удалить выполненные</button>
+      </div>
+    `;
+    const toggleBottom = document.getElementById(`toggleSelect-${sector}-bottom`);
+    const deleteBottom = document.getElementById(`deleteDoneBottom-${sector}`);
+    if (toggleBottom) toggleBottom.onclick = () => toggleSelectAll(sector);
+    if (deleteBottom) {
+      deleteBottom.onclick = () => {
+        if (!isAdmin || !confirm('Удалить все выполненные задачи?')) return;
+        db.ref(`tasks/${sector}`).once('value', (snapshot) => {
+          const tasks = snapshot.val() || {};
+          Object.entries(tasks).forEach(([key, task]) => {
+            if (task.done) db.ref(`tasks/${sector}/${key}`).remove();
           });
-        }
-        nameCell.appendChild(nameTextarea);
-
-        const starsCell = document.createElement('td');
-        const starsInput = document.createElement('input');
-        starsInput.type = 'number';
-        starsInput.min = '0';
-        starsInput.value = p.stars;
-        starsInput.disabled = !isAdmin;
-        starsInput.style.width = '100%';
-        if (isAdmin) {
-          starsInput.addEventListener('blur', () => {
-            const val = Math.max(0, parseInt(starsInput.value) || 0);
-            db.ref(`participants/${p.key}/stars`).set(val);
-            starsInput.value = val;
-          });
-          starsInput.addEventListener('focus', (e) => {
-            e.target.dataset.scrollY = window.scrollY;
-          });
-          starsInput.addEventListener('blur', (e) => {
-            setTimeout(() => {
-              window.scrollTo(0, e.target.dataset.scrollY);
-            }, 10);
-          });
-          starsInput.addEventListener('dblclick', () => {
-            const newVal = p.stars + 1;
-            db.ref(`participants/${p.key}/stars`).set(newVal);
-          });
-        }
-        starsCell.appendChild(starsInput);
-
-        const skullsCell = document.createElement('td');
-        const skullsInput = document.createElement('input');
-        skullsInput.type = 'number';
-        skullsInput.min = '0';
-        skullsInput.value = p.skulls;
-        skullsInput.disabled = !isAdmin;
-        skullsInput.style.width = '100%';
-        if (isAdmin) {
-          skullsInput.addEventListener('blur', () => {
-            const val = Math.max(0, parseInt(skullsInput.value) || 0);
-            db.ref(`participants/${p.key}/skulls`).set(val);
-            skullsInput.value = val;
-          });
-          skullsInput.addEventListener('focus', (e) => {
-            e.target.dataset.scrollY = window.scrollY;
-          });
-          skullsInput.addEventListener('blur', (e) => {
-            setTimeout(() => {
-              window.scrollTo(0, e.target.dataset.scrollY);
-            }, 10);
-          });
-        }
-        skullsCell.appendChild(skullsInput);
-
-        const actionsCell = document.createElement('td');
-        if (isAdmin) {
-          const chocolateBtn = document.createElement('button');
-          chocolateBtn.textContent = '🍫';
-          chocolateBtn.title = 'Потратить 10 звёзд';
-          chocolateBtn.className = 'btn action-btn';
-          chocolateBtn.disabled = p.stars < 10;
-          chocolateBtn.onclick = () => p.stars >= 10 ? db.ref(`participants/${p.key}/stars`).set(p.stars - 10) : alert('Нужно 10+ звёзд!');
-          actionsCell.appendChild(chocolateBtn);
-
-          const deleteBtn = document.createElement('button');
-          deleteBtn.textContent = '🗑️';
-          deleteBtn.title = 'Удалить';
-          deleteBtn.className = 'btn action-btn';
-          deleteBtn.onclick = () => confirm(`Удалить "${p.name}"?`) && db.ref(`participants/${p.key}`).remove();
-          actionsCell.appendChild(deleteBtn);
-        }
-        actionsCell.style.display = isAdmin ? 'flex' : 'none';
-        actionsCell.style.justifyContent = 'center';
-        actionsCell.style.gap = '4px';
-
-        row.append(nameCell, starsCell, skullsCell, actionsCell);
-        tbody.appendChild(row);
-      });
-
-      const searchInput = document.getElementById('participantSearch');
-      if (searchInput) {
-        const event = new Event('input');
-        searchInput.dispatchEvent(event);
-      }
-    }
-
-    function initParticipantsTable() {
-      db.ref('participants').on('value', (snapshot) => {
-        participantsList = [];
-        const data = snapshot.val() || {};
-        Object.entries(data).forEach(([key, p]) => {
-          participantsList.push({ key, name: p.name || '', stars: p.stars || 0, skulls: p.skulls || 0 });
         });
-        renderParticipantsTable();
-      });
-    }
-
-    async function initTasks(sector) {
-      if (!participantsLoaded) await loadParticipants();
-
-      const list = document.getElementById(`tasks-${sector}`);
-      const topControls = document.getElementById(`controls-top-${sector}`);
-      const bottomControls = Array.from(document.querySelectorAll(`#sector-${sector} .task-controls`)).pop();
-
-      list.innerHTML = '<li class="no-tasks">Заданий нет</li>';
-      if (topControls) topControls.classList.add('task-controls-top-hidden');
-
-      // Привязываем обработчики к кнопкам сверху
-      const toggleTop = document.getElementById(`toggleSelect-${sector}`);
-      const deleteTop = document.getElementById(`deleteDoneTop-${sector}`);
-
-      if (toggleTop) {
-        toggleTop.onclick = () => toggleSelectAll(sector);
-      }
-
-      if (deleteTop) {
-        deleteTop.onclick = () => {
-          if (!isAdmin || !confirm('Удалить все выполненные задачи?')) return;
-          db.ref(`tasks/${sector}`).once('value', (snapshot) => {
-            const tasks = snapshot.val() || {};
-            Object.entries(tasks).forEach(([key, task]) => {
-              if (task.done) db.ref(`tasks/${sector}/${key}`).remove();
-            });
-          });
-        };
-      }
-
-      // Обновляем нижние кнопки
-      if (bottomControls) {
-        bottomControls.innerHTML = `
-          <button class="btn btn-sm admin-only" onclick="addTask('${sector}')">+ Добавить задачу</button>
-          <div class="admin-only admin-visible" style="display:flex;gap:8px;">
-            <button class="btn btn-sm admin-only" id="toggleSelect-${sector}-bottom">Выделить всё</button>
-            <button class="btn btn-sm admin-only" id="deleteDoneBottom-${sector}">🗑️ Удалить выполненные</button>
-          </div>
-        `;
-        const toggleBottom = document.getElementById(`toggleSelect-${sector}-bottom`);
-        const deleteBottom = document.getElementById(`deleteDoneBottom-${sector}`);
-        if (toggleBottom) toggleBottom.onclick = () => toggleSelectAll(sector);
-        if (deleteBottom) {
-          deleteBottom.onclick = () => {
-            if (!isAdmin || !confirm('Удалить все выполненные задачи?')) return;
-            db.ref(`tasks/${sector}`).once('value', (snapshot) => {
-              const tasks = snapshot.val() || {};
-              Object.entries(tasks).forEach(([key, task]) => {
-                if (task.done) db.ref(`tasks/${sector}/${key}`).remove();
-              });
-            });
-          };
-        }
-      }
-
-      updateAdminUI();
-
-      const ref = db.ref(`tasks/${sector}`);
-      const handlers = {
-        added: (snapshot) => {
-          if (list.querySelector('.no-tasks')) {
-            list.innerHTML = '';
-          }
-          renderTask(sector, snapshot.key, snapshot.val());
-          setTimeout(() => updateTaskControlsVisibility(sector), 100);
-        },
-        changed: (snapshot) => {
-          const li = list.querySelector(`li[data-key="${snapshot.key}"]`);
-          if (li) {
-            updateTask(sector, snapshot.key, snapshot.val(), li);
-          } else {
-            if (list.querySelector('.no-tasks')) list.innerHTML = '';
-            renderTask(sector, snapshot.key, snapshot.val());
-          }
-          setTimeout(() => updateTaskControlsVisibility(sector), 100);
-        },
-        removed: (snapshot) => {
-          const li = list.querySelector(`li[data-key="${snapshot.key}"]`);
-          if (li) li.remove();
-          if (list.children.length === 0) {
-            list.innerHTML = '<li class="no-tasks">Заданий нет</li>';
-          }
-          setTimeout(() => updateTaskControlsVisibility(sector), 100);
-        }
       };
-
-      ref.on('child_added', handlers.added);
-      ref.on('child_changed', handlers.changed);
-      ref.on('child_removed', handlers.removed);
-      sectorListeners[sector] = { ref, handlers };
     }
+  }
+  
+  updateAdminUI();
+  
+  const ref = db.ref(`tasks/${sector}`);
+  const handlers = {
+    added: (snapshot) => {
+      if (list.querySelector('.no-tasks')) {
+        list.innerHTML = '';
+      }
+      renderTask(sector, snapshot.key, snapshot.val());
+      setTimeout(() => updateTaskControlsVisibility(sector), 100);
+    },
+    changed: (snapshot) => {
+      const li = list.querySelector(`li[data-key="${snapshot.key}"]`);
+      if (li) {
+        updateTask(sector, snapshot.key, snapshot.val(), li);
+      } else {
+        if (list.querySelector('.no-tasks')) list.innerHTML = '';
+        renderTask(sector, snapshot.key, snapshot.val());
+      }
+      setTimeout(() => updateTaskControlsVisibility(sector), 100);
+    },
+    removed: (snapshot) => {
+      const li = list.querySelector(`li[data-key="${snapshot.key}"]`);
+      if (li) li.remove();
+      if (list.children.length === 0) {
+        list.innerHTML = '<li class="no-tasks">Заданий нет</li>';
+      }
+      setTimeout(() => updateTaskControlsVisibility(sector), 100);
+    }
+  };
+  
+  ref.on('child_added', handlers.added);
+  ref.on('child_changed', handlers.changed);
+  ref.on('child_removed', handlers.removed);
+  sectorListeners[sector] = { ref, handlers };
+}
 
 function renderTask(sector, taskKey, data) {
   const list = document.getElementById(`tasks-${sector}`);
   if (list.querySelector('.no-tasks')) {
     list.innerHTML = '';
   }
-
+  
   const li = document.createElement('li');
   li.className = 'task-item';
   li.dataset.key = taskKey;
-
+  
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.checked = data.done || false;
@@ -959,19 +1178,21 @@ function renderTask(sector, taskKey, data) {
       db.ref(`tasks/${sector}/${taskKey}/done`).set(checkbox.checked);
     });
   }
-
+  
   const contentDiv = document.createElement('div');
   contentDiv.className = 'task-content';
-
+  
   if (isAdmin) {
     const textInput = document.createElement('textarea');
     textInput.value = data.text || '';
     textInput.placeholder = 'Описание задачи';
-    textInput.style.fontFamily = 'Arial, sans-serif';
-    textInput.style.fontSize = '14px';
+    textInput.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    textInput.style.fontSize = '16px';
+    textInput.style.color = '#2c3e50';
+    
     const autoSize = () => {
       textInput.style.height = 'auto';
-      textInput.style.height = Math.max(24, textInput.scrollHeight) + 'px';
+      textInput.style.height = Math.max(40, textInput.scrollHeight) + 'px';
     };
     autoSize();
     textInput.addEventListener('input', autoSize);
@@ -983,9 +1204,12 @@ function renderTask(sector, taskKey, data) {
     const textDisplay = document.createElement('div');
     textDisplay.className = 'task-text-display';
     textDisplay.textContent = data.text || '';
+    textDisplay.style.fontSize = '16px';
+    textDisplay.style.color = '#2c3e50';
+    textDisplay.style.lineHeight = '1.5';
     contentDiv.appendChild(textDisplay);
   }
-
+  
   if (data.assignees?.length > 0) {
     const assigneesDiv = document.createElement('div');
     assigneesDiv.className = 'task-assignees';
@@ -993,19 +1217,19 @@ function renderTask(sector, taskKey, data) {
     assigneesDiv.textContent = `Исполнители: ${names}`;
     contentDiv.appendChild(assigneesDiv);
   }
-
+  
   if (isAdmin) {
     const assignBtn = document.createElement('button');
     assignBtn.textContent = '👥 Назначить';
     assignBtn.className = 'btn btn-sm admin-only admin-visible';
+    assignBtn.style.marginTop = '6px';
     assignBtn.onclick = (e) => {
       e.stopPropagation();
       document.querySelectorAll('.assign-dropdown').forEach(el => el.remove());
-
+      
       const dropdown = document.createElement('div');
       dropdown.className = 'assign-dropdown';
-
-      // Позиционируем рядом с кнопкой
+      
       const rect = assignBtn.getBoundingClientRect();
       dropdown.style.position = 'absolute';
       dropdown.style.left = rect.left + 'px';
@@ -1013,20 +1237,18 @@ function renderTask(sector, taskKey, data) {
       dropdown.style.zIndex = '2000';
       dropdown.style.background = 'white';
       dropdown.style.border = '1px solid #ccc';
-      dropdown.style.borderRadius = '4px';
-      dropdown.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-      dropdown.style.fontFamily = 'Arial, sans-serif';
-      dropdown.style.fontSize = '13px';
-      dropdown.style.width = '220px';
-      dropdown.style.maxHeight = '300px';
-      dropdown.style.overflow = 'hidden'; // важно: overflow на основном блоке — hidden
-
-      // Контейнер для прокручиваемых чекбоксов
+      dropdown.style.borderRadius = '8px';
+      dropdown.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+      dropdown.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+      dropdown.style.fontSize = '14px';
+      dropdown.style.width = '240px';
+      dropdown.style.maxHeight = '320px';
+      
       const scrollContainer = document.createElement('div');
-      scrollContainer.style.maxHeight = '220px';
+      scrollContainer.style.maxHeight = '240px';
       scrollContainer.style.overflowY = 'auto';
-      scrollContainer.style.padding = '8px';
-
+      scrollContainer.style.padding = '10px';
+      
       const current = data.assignees || [];
       participantsList.forEach(p => {
         const label = document.createElement('label');
@@ -1034,31 +1256,34 @@ function renderTask(sector, taskKey, data) {
         cb.type = 'checkbox';
         cb.value = p.key;
         cb.checked = current.includes(p.key);
-        label.style.display = 'block';
-        label.style.margin = '4px 0';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.style.margin = '6px 0';
         label.style.cursor = 'pointer';
+        label.style.padding = '4px 6px';
+        label.style.borderRadius = '4px';
+        label.onmouseover = () => label.style.backgroundColor = '#f5f7fa';
+        label.onmouseout = () => label.style.backgroundColor = '';
         label.append(cb, document.createTextNode(` ${p.name}`));
         scrollContainer.appendChild(label);
       });
-
-      // Кнопка "Готово" — вне прокрутки
+      
       const done = document.createElement('button');
       done.textContent = 'Готово';
       done.className = 'btn';
-      done.style.width = 'calc(100% - 16px)';
-      done.style.margin = '0 8px 8px';
-      done.style.fontSize = '13px';
+      done.style.width = 'calc(100% - 20px)';
+      done.style.margin = '10px';
+      done.style.fontSize = '14px';
       done.onclick = () => {
         const sel = Array.from(dropdown.querySelectorAll('input:checked')).map(cb => cb.value);
         db.ref(`tasks/${sector}/${taskKey}/assignees`).set(sel.length ? sel : null);
         dropdown.remove();
       };
-
+      
       dropdown.appendChild(scrollContainer);
       dropdown.appendChild(done);
       document.body.appendChild(dropdown);
-
-      // Закрытие по клику вне
+      
       const close = (e) => {
         if (!dropdown.contains(e.target) && e.target !== assignBtn) {
           dropdown.remove();
@@ -1066,125 +1291,162 @@ function renderTask(sector, taskKey, data) {
         }
       };
       document.addEventListener('click', close);
+      
+      // Закрытие при скролле
+      let lastScroll = window.scrollY;
+      window.addEventListener('scroll', function scrollHandler() {
+        if (Math.abs(window.scrollY - lastScroll) > 10) {
+          dropdown.remove();
+          window.removeEventListener('scroll', scrollHandler);
+          document.removeEventListener('click', close);
+        }
+      });
     };
+    
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'task-actions admin-only admin-visible';
+    actionsDiv.style.width = '100%';
     actionsDiv.appendChild(assignBtn);
     contentDiv.appendChild(actionsDiv);
   }
-
+  
   li.appendChild(checkbox);
   li.appendChild(contentDiv);
   list.appendChild(li);
 }
-    function updateTask(sector, taskKey, data, li) {
-      const checkbox = li.querySelector('.task-checkbox');
-      if (checkbox) {
-        checkbox.checked = data.done || false;
-        checkbox.disabled = !isAdmin;
-      }
 
-      const textDisplay = li.querySelector('.task-text-display');
-      const textArea = li.querySelector('textarea');
-      if (isAdmin && textArea) {
-        if (document.activeElement !== textArea) {
-          textArea.value = data.text || '';
-          textArea.style.height = 'auto';
-          textArea.style.height = Math.max(24, textArea.scrollHeight) + 'px';
-        }
-      } else if (!isAdmin && textDisplay) {
-        textDisplay.textContent = data.text || '';
-      }
+function updateTask(sector, taskKey, data, li) {
+  const checkbox = li.querySelector('.task-checkbox');
+  if (checkbox) {
+    checkbox.checked = data.done || false;
+    checkbox.disabled = !isAdmin;
+  }
+  
+  const textDisplay = li.querySelector('.task-text-display');
+  const textArea = li.querySelector('textarea');
+  if (isAdmin && textArea) {
+    if (document.activeElement !== textArea) {
+      textArea.value = data.text || '';
+      textArea.style.height = 'auto';
+      textArea.style.height = Math.max(40, textArea.scrollHeight) + 'px';
+    }
+  } else if (!isAdmin && textDisplay) {
+    textDisplay.textContent = data.text || '';
+  }
+  
+  const assigneesDiv = li.querySelector('.task-assignees');
+  if (assigneesDiv) {
+    if (data.assignees?.length > 0) {
+      const names = data.assignees.map(k => participantsList.find(p => p.key === k)?.name || '???').join(', ');
+      assigneesDiv.textContent = `Исполнители: ${names}`;
+    } else {
+      assigneesDiv.remove();
+    }
+  } else if (data.assignees?.length > 0 && !assigneesDiv) {
+    const contentDiv = li.querySelector('.task-content');
+    const newAssignees = document.createElement('div');
+    newAssignees.className = 'task-assignees';
+    const names = data.assignees.map(k => participantsList.find(p => p.key === k)?.name || '???').join(', ');
+    newAssignees.textContent = `Исполнители: ${names}`;
+    contentDiv.appendChild(newAssignees);
+  }
+}
 
-      const assigneesDiv = li.querySelector('.task-assignees');
-      if (assigneesDiv) {
-        if (data.assignees?.length > 0) {
-          const names = data.assignees.map(k => participantsList.find(p => p.key === k)?.name || '???').join(', ');
-          assigneesDiv.textContent = `Исполнители: ${names}`;
-        } else {
-          assigneesDiv.remove();
-        }
-      } else if (data.assignees?.length > 0 && !assigneesDiv) {
-        const contentDiv = li.querySelector('.task-content');
-        const newAssignees = document.createElement('div');
-        newAssignees.className = 'task-assignees';
-        const names = data.assignees.map(k => participantsList.find(p => p.key === k)?.name || '???').join(', ');
-        newAssignees.textContent = `Исполнители: ${names}`;
-        contentDiv.appendChild(newAssignees);
+function toggleSelectAll(sector) {
+  if (!isAdmin) return;
+  const list = document.getElementById(`tasks-${sector}`);
+  const checkboxes = list.querySelectorAll('.task-checkbox');
+  if (checkboxes.length === 0) return;
+  
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  const newState = !allChecked;
+  checkboxes.forEach(cb => {
+    cb.checked = newState;
+    db.ref(`tasks/${sector}/${cb.closest('li').dataset.key}/done`).set(newState);
+  });
+  
+  const buttons = document.querySelectorAll(
+    `#toggleSelect-${sector}, #toggleSelect-${sector}-bottom`
+  );
+  buttons.forEach(btn => {
+    btn.textContent = newState ? 'Снять выделение' : 'Выделить всё';
+  });
+}
+
+function switchTab(target) {
+  document.querySelectorAll('.sidebar button:not(.admin-toggle-sidebar)').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const btn = document.querySelector(`.sidebar button[data-target="${target}"]`);
+  btn?.classList.add('active');
+  document.getElementById(target)?.classList.add('active');
+  localStorage.setItem(ACTIVE_TAB_KEY, target);
+  currentTab = target;
+  
+  if (target.startsWith('sector-')) {
+    const sector = target.split('-')[1];
+    unsubscribeFromTasks(sector);
+    document.getElementById(`tasks-${sector}`).innerHTML = '<li class="no-tasks">Заданий нет</li>';
+    initTasks(sector);
+  }
+}
+
+function scrollToBottom() {
+  setTimeout(() => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }, 100);
+}
+
+window.addNewParticipant = () => {
+  if (!isAdmin) return enterAdminMode();
+  const name = prompt("ФИО участника:", "Новый участник");
+  if (name?.trim()) {
+    db.ref('participants').push({ name: name.trim(), stars: 0, skulls: 0 });
+    scrollToBottom();
+  }
+};
+
+window.addTask = (sector) => {
+  if (!isAdmin) return enterAdminMode();
+  const text = prompt("Описание задачи:", "Новая задача");
+  if (text?.trim()) {
+    db.ref(`tasks/${sector}`).push({ text: text.trim(), done: false, assignees: null });
+    scrollToBottom();
+  }
+};
+
+window.filterParticipants = () => {
+  const input = document.getElementById('participantSearch');
+  const filter = input.value.toUpperCase();
+  const table = document.querySelector('.participants-table');
+  const tr = table.getElementsByTagName('tr');
+  
+  for (let i = 0; i < tr.length; i++) {
+    const td = tr[i].getElementsByTagName('td')[0];
+    if (td) {
+      const txtValue = td.textContent || td.innerText || td.querySelector('textarea')?.value || '';
+      if (txtValue.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = '';
+      } else {
+        tr[i].style.display = 'none';
       }
     }
+  }
+};
 
-    function toggleSelectAll(sector) {
-      if (!isAdmin) return;
-      const list = document.getElementById(`tasks-${sector}`);
-      const checkboxes = list.querySelectorAll('.task-checkbox');
-      if (checkboxes.length === 0) return;
-      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-      const newState = !allChecked;
-      checkboxes.forEach(cb => {
-        cb.checked = newState;
-        db.ref(`tasks/${sector}/${cb.closest('li').dataset.key}/done`).set(newState);
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadParticipants();
+  document.querySelectorAll('.sidebar button:not(.admin-toggle-sidebar)').forEach(btn => {
+    if (!btn.dataset.clickBound) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchTab(btn.dataset.target);
       });
-
-      const buttons = document.querySelectorAll(
-        `#toggleSelect-${sector}, #toggleSelect-${sector}-bottom`
-      );
-      buttons.forEach(btn => {
-        btn.textContent = newState ? 'Снять выделение' : 'Выделить всё';
-      });
+      btn.dataset.clickBound = 'true';
     }
-
-    function switchTab(target) {
-      document.querySelectorAll('.sidebar button:not(.admin-toggle-sidebar)').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      const btn = document.querySelector(`.sidebar button[data-target="${target}"]`);
-      btn?.classList.add('active');
-      document.getElementById(target)?.classList.add('active');
-      localStorage.setItem(ACTIVE_TAB_KEY, target);
-      currentTab = target;
-      if (target.startsWith('sector-')) {
-        const sector = target.split('-')[1];
-        unsubscribeFromTasks(sector);
-        document.getElementById(`tasks-${sector}`).innerHTML = '<li class="no-tasks">Заданий нет</li>';
-        initTasks(sector);
-      }
-    }
-
-    function scrollToBottom() {
-      setTimeout(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      }, 100);
-    }
-
-    window.addNewParticipant = () => {
-      if (!isAdmin) return enterAdminMode();
-      const name = prompt("Имя:", "Новый участник");
-      if (name?.trim()) {
-        db.ref('participants').push({ name: name.trim(), stars: 0, skulls: 0 });
-        scrollToBottom();
-      }
-    };
-
-    window.addTask = (sector) => {
-      if (!isAdmin) return enterAdminMode();
-      const text = prompt("Задача:", "Новая задача");
-      if (text?.trim()) {
-        db.ref(`tasks/${sector}`).push({ text: text.trim(), done: false, assignees: null });
-        scrollToBottom();
-      }
-    };
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      await loadParticipants();
-      document.querySelectorAll('.sidebar button:not(.admin-toggle-sidebar)').forEach(btn => {
-        if (!btn.dataset.clickBound) {
-          btn.addEventListener('click', () => switchTab(btn.dataset.target));
-          btn.dataset.clickBound = 'true';
-        }
-      });
-      switchTab(currentTab);
-      initParticipantsTable();
-    });
-  </script>
+  });
+  switchTab(currentTab);
+  initParticipantsTable();
+});
+</script>
 </body>
 </html>
